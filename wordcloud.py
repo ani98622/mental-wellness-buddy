@@ -25,6 +25,7 @@ def generate_word_cloud(data):
     path="/",
     title="Word Cloud of Office Issues"
 )
+
 def app():
     # Fetch the issue data
     conn = create_connection()
