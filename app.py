@@ -1,38 +1,42 @@
-import getpass
 import os
 from dotenv import load_dotenv
 import mesop as me
 import mesop.labs as mel
-import uuid
 import subprocess
 from user_validation import get_ip_address,is_office_network
 import platform
 from langchain_groq import ChatGroq
 from langchain_community.chat_message_histories import SQLChatMessageHistory
-from langchain_core.messages import HumanMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from admin import validate_user
+from office_issues import fetch_issue_data, create_connection
+from test import generate_bar_chart
 load_dotenv()
 
 groq_api_key = os.getenv('GROQ_API_KEY')
 
-# Define a state class to hold the user input values
+
 @me.stateclass
 class State:
     user_id: str = ""
     password: str = ""
-    logged_in: bool = False  # State to track if the user has logged in
+    logged_in: bool = False  
 
-# Function to handle user ID input
+def remove_domain(email, domain="@agilisium.com"):
+    if email.endswith(domain):
+        return email.replace(domain, "")
+    return email
 def on_user_id_input(e: me.InputEvent):
     state = me.state(State)
-    state.user_id = e.value  # Update the state with the user ID
+    state.user_id = e.value
+    state.user_id = remove_domain(state.user_id)
+      
 
-# Function to handle password input
+
 def on_password_input(e: me.InputEvent):
     state = me.state(State)
-    state.password = e.value  # Update the state with the password
+    state.password = e.value  
 
 def get_system_id():
     system = platform.system()
@@ -48,7 +52,7 @@ def get_system_id():
         except Exception as e:
             return f"An error occurred on Windows: {e}"
     
-    elif system == 'Darwin':  # macOS returns 'Darwin'
+    elif system == 'Darwin':  
         try:
             result = subprocess.run(['system_profiler', 'SPHardwareDataType'], capture_output=True, text=True)
             for line in result.stdout.splitlines():
@@ -121,7 +125,7 @@ def on_load(e: me.LoadEvent):
 
 def chat_page():
     mel.chat(transform, title="Med Buddy", bot_user="Mesop Bot")
-    me.button("back", on_click=lambda e: me.navigate("/"))
+    me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
 
 def transform(input: str = "", history: list[mel.ChatMessage] = []):
     session_id = get_system_id()
@@ -130,10 +134,43 @@ def transform(input: str = "", history: list[mel.ChatMessage] = []):
 
 @me.page(path="/Hr/dashboard")
 def hr_dashboard_page():
-    me.text("Welcome to the HR Dashboard!", type="headline-4")
-    me.text("Here you can access confidential HR information and reports.", type="body-1")
-    me.button("Logout", on_click=lambda e: me.navigate("/"))
+    state = me.state(State)
+    if state.user_id and state.password:
+        me.text("Login successful! Redirecting...", type="headline-4") # problem
+        me.text("Welcome to the HR Dashboard!", type="headline-4")
+        me.text("Here you can access confidential HR information and reports.", type="body-1")
+        me.button("Bar Plot", on_click=lambda e: me.navigate("/Hr/barplot"), type="flat")
+        me.button("Logout", on_click=clear_login, type="flat")
+    else:
+        me.navigate("")
+@me.page(path="/Hr/barplot")
+def barplot_page():
+    state = me.state(State)
+    if state.user_id and state.password:
+        conn = create_connection()
+        data = fetch_issue_data(conn)
+        fig = generate_bar_chart(data)
+        me.plot(fig, style=me.Style(width="80%"))
+        me.button("Back", on_click=lambda e: me.navigate("/Hr/dashboard"),type="flat")
+    else:
+        me.navigate("")
+@me.page(path="/Hr/try_again")
+def try_again_page():
+    state = me.state(State)
+    if state.user_id and state.password:
+        me.text("Invalid credentials. Please try again.", type="headline-4")
+        me.button("Try Again", on_click=clear_login,type="flat")
+        me.button("Home", on_click=lambda e: me.navigate("/"),type="flat")
+    else:
+        me.navigate("")
+def clear_login(e: me.ClickEvent):
+        state = me.state(State)
 
+        if state.user_id and state.password:
+            state.user_id=""
+            state.password=""
+            me.navigate("/Hr")
+           
 @me.page(path="/Hr")
 def hr_login_page():
     state = me.state(State)
@@ -147,19 +184,25 @@ def hr_login_page():
         state = me.state(State)
 
         if state.user_id and state.password:
+            
             user = validate_user(state.user_id, state.password)
             if user:
                 if user[2] == state.password:
                     state.logged_in = True
-                    me.text("Login successful! Redirecting...", type="headline-4")
                     me.navigate("/Hr/dashboard")
                 else:
-                    me.text("Password was wrong.Try again!!", type="headline-4")
+                    # me.text("Password was wrong.Try again!!", type="headline-4")
+                    # state.user_id = ""
+                    # state.password = ""
+                    me.navigate("/Hr/try_again")
             else:
-                me.text("Invalid credentials. Please try again.", type="headline-4")
+                me.navigate("/Hr/try_again")
+                # state.user_id = ""
+                # state.password = ""
+    
 
     me.button("Login", on_click=handle_login, type="flat")
-    me.button("back", on_click=lambda e: me.navigate("/"))
+    me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
 
 @me.page(path="/")
 def main_page():
@@ -170,4 +213,4 @@ def main_page():
             me.button("Start Chatting", on_click=lambda e: me.navigate("/main_page/chat_bot"), type="flat", color="accent")
             me.button("HR Login", on_click=lambda e: me.navigate("/Hr"), type="flat", color="accent")
     else:
-        me.text("Access denied. Please connect to the office Wi-Fi.")
+        me.text("Access denied. Please connect to the office Wi-Fi.",type="headline-3")

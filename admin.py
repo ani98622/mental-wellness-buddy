@@ -1,5 +1,4 @@
 import sqlite3
-import hashlib  # For password hashing
 
 def initialize_db():
     """
@@ -12,7 +11,7 @@ def initialize_db():
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL
+        password TEXT NOT NULL
     )
     ''')
     conn.commit()
@@ -22,7 +21,7 @@ initialize_db()
 
 def add_user(username, password):
     """
-    Adds a new user to the 'users' table with a hashed password.
+    Adds a new user to the 'users' table with a password.
 
     Args:
         username (str): The username of the new user.
@@ -32,16 +31,13 @@ def add_user(username, password):
     conn = sqlite3.connect('admin.db')
     cursor = conn.cursor()
 
-    # Hash the password for better security
-    # hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
-
-    cursor.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)', (username, password))
+    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
     conn.commit()
     conn.close()
 
 def validate_user(username, password):
     """
-    Validates a user's credentials by checking the username and password hash.
+    Validates a user's credentials by checking the username and password.
 
     Args:
         username (str): The username to validate.
@@ -54,8 +50,6 @@ def validate_user(username, password):
     conn = sqlite3.connect('admin.db')
     cursor = conn.cursor()
 
-    # Hash the entered password for comparison
-
     cursor.execute('SELECT * FROM users WHERE username=?', (username,))
 
     user = cursor.fetchone()
@@ -67,9 +61,6 @@ def validate_user(username, password):
     else:
         return (0,'temp','passstemp')
     
-
-    
-
 def delete_user(username, password):
     """
     Deletes a user from the 'users' table based on username and password.
@@ -93,11 +84,12 @@ def delete_user(username, password):
     conn.close()
 
 # Example usage (commented out for security reasons)
-# add_user('siva@agilisum.com', 'pass123')  # Don't store passwords in plain text
-# add_user('bala@agilisum.com', 'pass124')  # Don't store passwords in plain text
-# add_user('raj@agilisum.com', 'pass125')  # Don't store passwords in plain text
-# add_user('sivas','pass126')
-# add_user('balaa','pass127')
-# add_user('rajb','pass128')
+add_user('siva@agilisum.com', 'pass123')  # Don't store passwords in plain text
+add_user('bala@agilisum.com', 'pass124')  # Don't store passwords in plain text
+add_user('raju@agilisum', 'pass1256')  # Don't store passwords in plain text
+add_user('sivas','pass126')
+add_user('balaa','pass127')
+add_user('rajb','pass128')
 
+add_user('rajbbbbb','pass125')
 # validate_user('raj@agilisum.com', 'pass125')
