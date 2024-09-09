@@ -84,12 +84,12 @@ def delete_user(username, password):
     conn.close()
 
 # Example usage (commented out for security reasons)
-add_user('siva@agilisum.com', 'pass123')  # Don't store passwords in plain text
-add_user('bala@agilisum.com', 'pass124')  # Don't store passwords in plain text
-add_user('raju@agilisum', 'pass1256')  # Don't store passwords in plain text
-add_user('sivas','pass126')
-add_user('balaa','pass127')
-add_user('rajb','pass128')
+# add_user('siva@agilisum.com', 'pass123')  # Don't store passwords in plain text
+# add_user('bala@agilisum.com', 'pass124')  # Don't store passwords in plain text
+# add_user('raju@agilisum', 'pass1256')  # Don't store passwords in plain text
+# add_user('sivas','pass126')
+# add_user('balaa','pass127')
+# add_user('rajb','pass128')
 
-add_user('rajbbbbb','pass125')
+# add_user('rajbbbbb','pass125')
 # validate_user('raj@agilisum.com', 'pass125')
