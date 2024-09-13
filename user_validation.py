@@ -14,8 +14,8 @@ def get_ip_address():
 
 def is_office_network(ip_address):
     # Define the office network IP range (for example: 192.168.1.0/24)
-    office_ip_range_start = '172.17.49.000'
-    office_ip_range_end = '172.17.49.3000'
+    office_ip_range_start = '172.16.2.100'
+    office_ip_range_end = '172.16.2.300'
 
     ip_num = int(''.join([f"{int(part):02x}" for part in ip_address.split('.')]), 16)
     start_num = int(''.join([f"{int(part):02x}" for part in office_ip_range_start.split('.')]), 16)

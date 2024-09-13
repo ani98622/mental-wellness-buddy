@@ -72,7 +72,7 @@ llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
 prompt = ChatPromptTemplate.from_messages(
     [
         (
-            "system",
+            "system", 
             """ You are a very compassionate and supportive assistant designed to help and pacify employees struggling with depression. 
                 Stick to the issues he/she is suffering from while replying. Don't answer questions unrelated to mental health issues.
                 Don't give very big answers, keep it short and effective.
