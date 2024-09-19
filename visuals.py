@@ -1,6 +1,51 @@
 import mesop as me
 import matplotlib.pyplot as plt
 from office_issues import fetch_issue_data, create_connection
+from matplotlib.figure import Figure
+
+def generate_bar_chart(data):
+    labels = [row[0] for row in data]
+    values = [row[1] for row in data]
+    fig = Figure(figsize=(6, 4)) 
+    ax = fig.subplots()
+    ax.bar(labels, values)
+    
+    ax.set_xlabel("Issues")
+    ax.set_ylabel("Count")
+    ax.set_title("Prevalence of Issues in the Office")
+    
+    ax.set_xticklabels(labels, rotation=45, ha="right")
+    
+    fig.tight_layout()
+
+    return fig
+
+@me.page(
+    security_policy=me.SecurityPolicy(
+        allowed_iframe_parents=["https://google.github.io"]
+    ),
+    path="/",
+    title="Office Issue Prevalence"
+)
+def app():
+    # Fetch the issue data
+    conn = create_connection()
+    data = fetch_issue_data(conn)
+
+    # Generate the bar chart
+    fig = generate_bar_chart(data)
+
+    # Display the bar chart using Mesop
+    me.text("Office Issue Prevalence:")
+    me.plot(fig, style=me.Style(width="80%"))
+    me.button("Back", on_click=lambda e: me.navigate("/"))
+
+
+
+
+import mesop as me
+import matplotlib.pyplot as plt
+from office_issues import fetch_issue_data, create_connection
 from wordcloud import WordCloud
 
 def generate_word_cloud(data):

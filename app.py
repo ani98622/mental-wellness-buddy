@@ -1,21 +1,41 @@
-import os
+import os, socket,subprocess,platform
 from dotenv import load_dotenv
 import mesop as me
 import mesop.labs as mel
-import subprocess
-from user_validation import get_ip_address,is_office_network
-import platform
 from langchain_groq import ChatGroq
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from admin import validate_user
 from office_issues import fetch_issue_data, create_connection
-from test import generate_bar_chart
+from visuals import generate_bar_chart
+
 load_dotenv()
 
 groq_api_key = os.getenv('GROQ_API_KEY')
 
+
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        s.connect(('8.8.8.8', 1))  
+        ip_address = s.getsockname()[0]
+    except Exception:
+        ip_address = '127.0.0.1'
+    finally:
+        s.close()
+    return ip_address
+
+def is_office_network(ip_address):
+    office_ip_range_start = '172.16.2.100'
+    office_ip_range_end = '172.16.2.300'
+
+    ip_num = int(''.join([f"{int(part):02x}" for part in ip_address.split('.')]), 16)
+    start_num = int(''.join([f"{int(part):02x}" for part in office_ip_range_start.split('.')]), 16)
+    end_num = int(''.join([f"{int(part):02x}" for part in office_ip_range_end.split('.')]), 16)
+
+    return start_num <= ip_num <= end_num
 
 @me.stateclass
 class State:
@@ -65,7 +85,6 @@ def get_system_id():
 
 def get_session_history(session_id):
     return SQLChatMessageHistory(session_id,"sqlite:///database.db")
-
 
 llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
 
