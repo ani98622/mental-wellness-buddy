@@ -1,6 +1,6 @@
 import sqlite3
 
-def create_connection(db_file="office_issues.db"):
+def create_connection(db_file="database.db"):
     """Create a database connection to the SQLite database specified by db_file."""
     conn = sqlite3.connect(db_file)
     return conn
@@ -43,20 +43,12 @@ def main():
         "depression", "sickness", "incompetency in office", "bad relationship"
     ]
     
-    # Create a connection
     conn = create_connection()
-
-    # Create the table if not exists
+    
     create_table(conn)
-
-    # Insert initial data
     insert_initial_data(conn, issue_list)
-
-    # Fetch and print the issue data
     issue_data = fetch_issue_data(conn)
-    print(issue_data)
 
-    # Close the connection
     close_connection(conn)
 
 if __name__ == "__main__":

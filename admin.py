@@ -2,13 +2,13 @@ import sqlite3
 
 def initialize_db():
     """
-    Creates the 'users' table in the 'admin.db' database if it doesn't exist.
+    Creates the 'users' table in the 'database.db' database if it doesn't exist.
     """
 
-    conn = sqlite3.connect('admin.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS admin (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL
@@ -21,23 +21,23 @@ initialize_db()
 
 def add_user(username, password):
     """
-    Adds a new user to the 'users' table with a password.
+    Adds a new user to the 'admin' table with a password.
 
     Args:
         username (str): The username of the new user.
         password (str): The password of the new user (in plain text).
     """
 
-    conn = sqlite3.connect('admin.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
 
-    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
+    cursor.execute('INSERT INTO admin (username, password) VALUES (?, ?)', (username, password))
     conn.commit()
     conn.close()
 
 def validate_user(username, password):
     """
-    Validates a user's credentials by checking the username and password.
+    Validates a admin's credentials by checking the username and password.
 
     Args:
         username (str): The username to validate.
@@ -47,10 +47,10 @@ def validate_user(username, password):
         bool: True if the credentials are valid, False otherwise.
     """
 
-    conn = sqlite3.connect('admin.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM users WHERE username=?', (username,))
+    cursor.execute('SELECT * FROM admin WHERE username=?', (username,))
 
     user = cursor.fetchone()
 
@@ -63,7 +63,7 @@ def validate_user(username, password):
     
 def delete_user(username, password):
     """
-    Deletes a user from the 'users' table based on username and password.
+    Deletes a user from the 'admin' table based on username and password.
 
     Args:
         username (str): The username of the user to delete.
@@ -79,17 +79,17 @@ def delete_user(username, password):
         conn.close()
         return
 
-    cursor.execute('DELETE FROM users WHERE username=? AND password=?', (username, password))
+    cursor.execute('DELETE FROM admin WHERE username=? AND password=?', (username, password))
     conn.commit()
     conn.close()
 
-# Example usage (commented out for security reasons)
-# add_user('siva@agilisum.com', 'pass123')  # Don't store passwords in plain text
-# add_user('bala@agilisum.com', 'pass124')  # Don't store passwords in plain text
-# add_user('raju@agilisum', 'pass1256')  # Don't store passwords in plain text
+
+# add_user('siva@agilisum.com', 'pass123')  
+# add_user('bala@agilisum.com', 'pass124')  
+# add_user('raju@agilisum', 'pass1256')  
 # add_user('sivas','pass126')
 # add_user('balaa','pass127')
 # add_user('rajb','pass128')
-
 # add_user('rajbbbbb','pass125')
+
 # validate_user('raj@agilisum.com', 'pass125')

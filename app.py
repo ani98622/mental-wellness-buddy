@@ -64,7 +64,7 @@ def get_system_id():
         return "Unsupported operating system."
 
 def get_session_history(session_id):
-    return SQLChatMessageHistory(session_id,"sqlite:///memory.db")
+    return SQLChatMessageHistory(session_id,"sqlite:///database.db")
 
 
 llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
@@ -179,8 +179,8 @@ def hr_login_page():
     me.text("HR Login", type="headline-4")
     me.text("Enter your HR credentials to access the dashboard.", type="body-1")
 
-    me.input(label="Username", on_input=on_user_id_input)  # Capture username
-    me.input(label="Password", type="password", on_input=on_password_input)  # Capture password
+    me.input(label="Username", on_input=on_user_id_input)  
+    me.input(label="Password", type="password", on_input=on_password_input)  
     
     def handle_login(e: me.ClickEvent):
         state = me.state(State)
@@ -193,15 +193,9 @@ def hr_login_page():
                     state.logged_in = True
                     me.navigate("/Hr/dashboard")
                 else:
-                    # me.text("Password was wrong.Try again!!", type="headline-4")
-                    # state.user_id = ""
-                    # state.password = ""
                     me.navigate("/Hr/try_again")
             else:
                 me.navigate("/Hr/try_again")
-                # state.user_id = ""
-                # state.password = ""
-    
 
     me.button("Login", on_click=handle_login, type="flat")
     me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
