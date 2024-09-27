@@ -25,12 +25,25 @@ def insert_initial_data(conn, issue_list):
         ''', (issue, 6))  # Default count set to 6
     conn.commit()
 
-def fetch_issue_data(conn):
+def fetch_issue_data(conn,start_date,end_date):
     """Fetch data from the issues table."""
-    cursor = conn.cursor()
-    cursor.execute('SELECT issue, count FROM issues')
-    data = cursor.fetchall()
-    return data
+    # cursor = conn.cursor()
+    # cursor.execute('SELECT issue, count FROM issues')
+    # data = cursor.fetchall()
+    # s = me.state(State)
+    mock_stats = {
+        'work_stress': (15, 8, 8),
+        'work_discontent': (7, 13, 11),
+        'anxiety': (10, 8, 13),
+        'depression': (13, 10, 8),
+        'compensation_frustration': (13, 7, 11),
+        'suicidal_thoughts': (15, 4, 12),
+        'workplace_bullying': (8, 13, 10),
+        'toxic_work_environment': (14, 8, 9),
+        'underappreciation': (9, 11, 11),
+        'time_deprivation': (12, 10, 9)
+    }
+    return mock_stats
 
 def close_connection(conn):
     """Close the database connection."""

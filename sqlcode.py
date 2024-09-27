@@ -8,52 +8,53 @@ conn = mysql.connector.connect(
     database="NoohMindmateDB"
 )
 
-def Add_Admin(user_id,pin):
-    cursor = conn.cursor()
-    sql_query = "SELECT * FROM administrators WHERE user_name = %s;"
-    values = (user_id,)
-    cursor.execute(sql_query, values)
-    result = cursor.fetchone()
-    if result:
-        return False
-    sql_query = "INSERT INTO administrators (user_name, pin) VALUES (%s, %s);"
-    values = (user_id, pin)
-    cursor.execute(sql_query, values)
-    conn.commit()
-    return True
+# def Add_Admin(user_id,pin):
+#     cursor = conn.cursor()
+#     sql_query = "SELECT * FROM administrators WHERE user_name = %s;"
+#     values = (user_id,)
+#     cursor.execute(sql_query, values)
+#     result = cursor.fetchone()
+#     if result:
+#         return False
+#     sql_query = "INSERT INTO administrators (user_name, pin) VALUES (%s, %s);"
+#     values = (user_id, pin)
+#     cursor.execute(sql_query, values)
+#     conn.commit()
+#     return True
     
-def Admin_Login(user_id,pin):
-    cursor = conn.cursor()
-    sql_query = "SELECT 1 FROM administrators WHERE user_name = %s AND pin = %s;"
-    values = (user_id, pin)
-    cursor.execute(sql_query, values)
-    result = cursor.fetchone()
-    if result:
-        return True
-    return False
+# def Admin_Login(user_id,pin):
+#     cursor = conn.cursor()
+#     sql_query = "SELECT 1 FROM administrators WHERE user_name = %s AND pin = %s;"
+#     values = (user_id, pin)
+#     cursor.execute(sql_query, values)
+#     result = cursor.fetchone()
+#     if result:
+#         return True
+#     return False
 
-def Check_System(s_id):
-    cursor = conn.cursor()
-    sql_query = "SELECT 1 FROM systems WHERE s_id = %s;"
-    values = (s_id,)
-    cursor.execute(sql_query, values)
-    result = cursor.fetchone()
-    if result:
-        return True
-    return False
+# def Check_System(s_id):
+#     cursor = conn.cursor()
+#     sql_query = "SELECT 1 FROM systems WHERE s_id = %s;"
+#     values = (s_id,)
+#     cursor.execute(sql_query, values)
+#     result = cursor.fetchone()
+#     if result:
+#         return True
+#     return False
 
-def Add_System(s_id):
-    if Check_System(s_id):
-        return False
-    cursor = conn.cursor()
-    sql_query = "INSERT INTO systems (s_id) VALUES (%s);"
-    values = (s_id,)
-    cursor.execute(sql_query, values)
-    conn.commit() 
-    return True
+# def Add_System(s_id):
+#     if Check_System(s_id):
+#         return False
+#     cursor = conn.cursor()
+#     sql_query = "INSERT INTO systems (s_id) VALUES (%s);"
+#     values = (s_id,)
+#     cursor.execute(sql_query, values)
+#     conn.commit() 
+#     return True
 
 def Add_Chathistory(s_id,speaker,chat):
     if Check_System(s_id) and speaker in ["User","AI"]:
+        conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         sql_query = "INSERT INTO chathistory (s_id,speaker,chat) VALUES (%s,%s,%s);"
         values = (s_id, speaker, chat)
@@ -63,6 +64,7 @@ def Add_Chathistory(s_id,speaker,chat):
     return False
 
 def Get_Chathistory(s_id, fromdate = 0, tilldate = 0):
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     if fromdate != 0:
         from_timestamp = datetime.strptime(fromdate, '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)

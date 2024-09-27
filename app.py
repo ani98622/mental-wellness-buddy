@@ -122,6 +122,7 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 runnable = prompt | llm
+
 runnable_with_history = RunnableWithMessageHistory(
     runnable,
     get_session_history,

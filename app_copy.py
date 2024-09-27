@@ -1,27 +1,49 @@
-import os
+import os, socket, subprocess, platform
 from dotenv import load_dotenv
 import mesop as me
 import mesop.labs as mel
-import subprocess
-from user_validation import get_ip_address,is_office_network
-import platform
 from langchain_groq import ChatGroq
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from admin import validate_user
 from office_issues import fetch_issue_data, create_connection
-from test import generate_bar_chart
+from visuals import generate_bar_chart, get_date_range
+
+
 load_dotenv()
 
 groq_api_key = os.getenv('GROQ_API_KEY')
 
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        s.connect(('8.8.8.8', 1))  
+        ip_address = s.getsockname()[0]
+    except Exception:
+        ip_address = '127.0.0.1'
+    finally:
+        s.close()
+    return ip_address
+
+def is_office_network(ip_address):
+    office_ip_range_start = '172.16.2.100'
+    office_ip_range_end = '172.16.2.300'
+
+    ip_num = int(''.join([f"{int(part):02x}" for part in ip_address.split('.')]), 16)
+    start_num = int(''.join([f"{int(part):02x}" for part in office_ip_range_start.split('.')]), 16)
+    end_num = int(''.join([f"{int(part):02x}" for part in office_ip_range_end.split('.')]), 16)
+
+    return start_num <= ip_num <= end_num
 
 @me.stateclass
 class State:
     user_id: str = ""
     password: str = ""
-    logged_in: bool = False  
+    logged_in: bool = False 
+    selected_values: list[str]
+    mock_stats : dict[str] 
 
 def remove_domain(email, domain="@agilisium.com"):
     if email.endswith(domain):
@@ -64,15 +86,14 @@ def get_system_id():
         return "Unsupported operating system."
 
 def get_session_history(session_id):
-    return SQLChatMessageHistory(session_id,"sqlite:///memory.db")
-
+    return SQLChatMessageHistory(session_id,"sqlite:///database.db")
 
 llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
 
 prompt = ChatPromptTemplate.from_messages(
     [
         (
-            "system", 
+            "system",
             """ You are a very compassionate and supportive assistant designed to help and pacify employees struggling with depression. 
                 Stick to the issues he/she is suffering from while replying. Don't answer questions unrelated to mental health issues.
                 Don't give very big answers, keep it short and effective.
@@ -103,6 +124,7 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 runnable = prompt | llm
+
 runnable_with_history = RunnableWithMessageHistory(
     runnable,
     get_session_history,
@@ -147,13 +169,39 @@ def hr_dashboard_page():
 def barplot_page():
     state = me.state(State)
     if state.user_id and state.password:
+        with me.box(style=me.Style(margin=me.Margin.all(15))):
+            me.text(text="Choose Period")
+            me.select(
+            label="select",
+            options=[
+                me.SelectOption(label="Last 7 Days", value="Last 7 Days"),
+                me.SelectOption(label="Last 30 Days", value="Last 30 Days"),
+                me.SelectOption(label="This Month", value="This Month"),
+                me.SelectOption(label="Last Month", value="Last Month")
+            ],
+            on_selection_change=on_selection_change,
+            style=me.Style(width=500),
+            multiple=False,
+            )
+        state = me.state(State)
+        from_date_str, till_date_str = get_date_range(state.selected_values)
+
         conn = create_connection()
-        data = fetch_issue_data(conn)
-        fig = generate_bar_chart(data)
-        me.plot(fig, style=me.Style(width="80%"))
-        me.button("Back", on_click=lambda e: me.navigate("/Hr/dashboard"),type="flat")
+        data = fetch_issue_data(conn, from_date_str, till_date_str) 
+        if data:
+            fig = generate_bar_chart(result = data, title = 'Results')
+            me.text("Office Issue Statistics:")
+            me.plot(fig, style=me.Style(width="80%"))
+        else:
+            me.text("No data available for the selected period.")
+        me.button("Back", on_click=lambda e: me.navigate("/Hr/dashboard"),type = 'flat')
     else:
         me.navigate("")
+
+def on_selection_change(e: me.SelectSelectionChangeEvent):
+    s = me.state(State)
+    s.selected_values = e.values
+
 
 @me.page(path="/Hr/try_again")
 def try_again_page():
@@ -179,8 +227,8 @@ def hr_login_page():
     me.text("HR Login", type="headline-4")
     me.text("Enter your HR credentials to access the dashboard.", type="body-1")
 
-    me.input(label="Username", on_input=on_user_id_input)  # Capture username
-    me.input(label="Password", type="password", on_input=on_password_input)  # Capture password
+    me.input(label="Username", on_input=on_user_id_input)  
+    me.input(label="Password", type="password", on_input=on_password_input)  
     
     def handle_login(e: me.ClickEvent):
         state = me.state(State)
@@ -193,15 +241,9 @@ def hr_login_page():
                     state.logged_in = True
                     me.navigate("/Hr/dashboard")
                 else:
-                    # me.text("Password was wrong.Try again!!", type="headline-4")
-                    # state.user_id = ""
-                    # state.password = ""
                     me.navigate("/Hr/try_again")
             else:
                 me.navigate("/Hr/try_again")
-                # state.user_id = ""
-                # state.password = ""
-    
 
     me.button("Login", on_click=handle_login, type="flat")
     me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
