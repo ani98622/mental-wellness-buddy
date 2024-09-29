@@ -1,19 +1,23 @@
-import os, socket,subprocess,platform
+from sqlcode import *
+import os, socket, subprocess, platform
 from dotenv import load_dotenv
-import mesop as me
-import mesop.labs as mel
+import mesop as me, mesop.labs as mel
 from langchain_groq import ChatGroq
-from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from admin import validate_user
-from office_issues import fetch_issue_data, create_connection
-from visuals import generate_bar_chart
+from visuals import generate_bar_chart, get_date_range
 
 load_dotenv()
-
 groq_api_key = os.getenv('GROQ_API_KEY')
 
+@me.stateclass
+class State:
+    user_id: str = ""
+    password: str = ""
+    logged_in: bool = False 
+    selected_values: list[str]
+    mock_stats : dict[str]  
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -37,17 +41,11 @@ def is_office_network(ip_address):
 
     return start_num <= ip_num <= end_num
 
-@me.stateclass
-class State:
-    user_id: str = ""
-    password: str = ""
-    logged_in: bool = False  
-
 def remove_domain(email, domain="@agilisium.com"):
     if email.endswith(domain):
         return email.replace(domain, "")
     return email
-
+    
 def on_user_id_input(e: me.InputEvent):
     state = me.state(State)
     state.user_id = e.value
@@ -80,55 +78,111 @@ def get_system_id():
             return "Hardware UUID not found."
         except Exception as e:
             return f"An error occurred on macOS: {e}"
+    
     else:
         return "Unsupported operating system."
 
-def get_session_history(session_id):
-    return SQLChatMessageHistory(session_id,"sqlite:///database.db")
+session_chat = ChatMessageHistory()
 
-llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
+llm = ChatGroq(model="llama3-8b-8192", api_key = groq_api_key)
+s_id = get_system_id()
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """ You are a very compassionate and supportive assistant designed to help and pacify employees struggling with depression. 
-                Stick to the issues he/she is suffering from while replying. Don't answer questions unrelated to mental health issues.
-                Don't give very big answers, keep it short and effective.
-                Your goal is to offer empathetic, non-judgmental guidance and provide actionable advice to improve their mental well-being.
-                Keep in mind that all the employees are in INDIA. 
-                When responding, consider the following:
+personal_info = Get_PersonalInfo(s_id = s_id)
 
-                Empathy: Start by acknowledging the person's feelings without minimizing their experience. Act like you are the Girlfriend/Boyfriend/Mother/Father/Close Friend whom a person can share thoughts freely. 
-                Active Listening: Encourage the person to share their thoughts and feelings, and validate their emotions.
-                Positive Reinforcement: Highlight their strengths and remind them of their worth.
-                Coping Strategies: Suggest healthy coping mechanisms, such as deep breathing exercises, journaling, physical activity, suggest some games of his likings to play or speaking with a mental health professional.
-                Encouragement: Motivate them to seek support from loved ones and professionals if needed.
-                Safety Net: If you sense that the person may be at risk of harming themselves in anyway like suiciding, encourage them to contact a trusted person or professional immediately.
-                Remember, anonymity is the most important thing. You are not supposed to reveal anyone's ID, NAME, Email Address, system ID, etc in any case to others.
-                Remember, your responses should be gentle, understanding, and focused on offering hope and practical steps toward feeling better.
-                Remember, you are here to help, not to provide answers. Feel free to ask clarifying questions or seek additional support as needed.
-                
-                Note : 
-                1- You are made to assist Human Resource Department(HRD) to anonymously encounter the issues/mental health of the employees so that regulatory measures can be taken.
-                Owing to which you have to help summarizing the category of problem he is facing also later on but not to the user. 
-                2- Respond keeping his/her previous chats in mind.
-                3- You can also use famous quotes by psychologists and others successful people to motivate them.
-""",
-        ),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{input}"),
-    ]
-)
+if personal_info:
+    chat_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                f""" You should act a good friend. If they need mental support, act accordingly.
+                Information about this person giving below. Use it while giving suggestions and its for your better understanding. 
+                There might be some of the problems they faced before don't explicitly mention those while responding
+                {personal_info}
 
-runnable = prompt | llm
+                Be precise with your response at most 30 - 50 words. Unless you feel large respose is compulsory. Always give some response.
+    """,
+            ),
+            MessagesPlaceholder(variable_name = "messages"),
+        ]
+    )
+else:
+    chat_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """ You should act a good friend. If they need mental support, act accordingly.
+                Be precise with your response at most 30 - 50 words. Unless you feel large respose is compulsory. Always give some response.
+    """,
+            ),
+            MessagesPlaceholder(variable_name = "messages"),
+        ]
+    )
 
-runnable_with_history = RunnableWithMessageHistory(
-    runnable,
-    get_session_history,
+chain = chat_prompt | llm
+
+chain_with_message_history = RunnableWithMessageHistory(
+    chain,
+    lambda session_id: session_chat,
     input_messages_key="input",
-    history_messages_key="history",
+    history_messages_key="messages",
 )
+
+def get_sessionchat():
+    global session_chat
+    return str(session_chat)
+
+def update_info():
+    s_id = get_system_id()
+    past_info=Get_PersonalInfo(s_id)
+    return 
+
+def session_done(session_chat=session_chat, llm = llm):
+    s_id = get_system_id()
+    chat = get_sessionchat()
+    info = give_personalinfo(s_id = s_id, chat = chat, llm = llm)
+    Add_Chathistory(s_id = s_id, chat = chat)
+    add_data(s_id = s_id, chat = chat, llm = llm)
+    UpdateOrAdd_PersonalInfo(s_id = s_id, info = info)
+    me.navigate("/")
+
+def give_personalinfo(s_id, chat, llm):
+    personal_info = Get_PersonalInfo(s_id = s_id)
+    if personal_info:
+        chat_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    f""" If asked for summary, provide an updated personal information. 
+                    Personal information may contain a person's details like name, their 
+                    likes, interests, hobbies, dislikes etc. It should be in a paragraph of 
+                    less than 1990 characters. 
+                    
+                    Previous personal Information: 
+                    {personal_info}
+                    
+                    Update the above personal info by adding relevant data that you get from below chat:
+                    {chat}""",
+                ),
+            ]
+        )
+    else:
+        chat_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    f""" If asked for summary, provide a personal summary. 
+                    Personal information may contain a person's details like name, their 
+                    likes, interests, hobbies, dislikes etc. It should be in a paragraph of 
+                    less than 1990 characters. 
+                    
+                    Give a personal summary by adding relevant data that you can get from below chat:
+                    {chat}        """,
+                ),
+            ]
+        )
+    chain = chat_prompt | llm
+    info = chain.invoke({"input": "summary"}).content
+    return info
 
 def on_load(e: me.LoadEvent):
     me.set_theme_mode("system")
@@ -142,13 +196,13 @@ def on_load(e: me.LoadEvent):
     on_load=on_load,
 )
 
-def chat_page():
-    mel.chat(transform, title="Med Buddy", bot_user="Mesop Bot")
-    me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
+def chat_page():  
+    mel.chat(transform, title="Mindmate", bot_user="Mindmate")
+    me.button(label = "Done", on_click=session_done)
 
 def transform(input: str = "", history: list[mel.ChatMessage] = []):
     session_id = get_system_id()
-    text = runnable_with_history.invoke({"input": input}, config={"configurable": {"session_id": session_id}}).content
+    text =chain_with_message_history.invoke({"input": input}, config={"configurable": {"session_id": session_id}}).content
     return text
 
 @me.page(path="/Hr/dashboard")
@@ -167,13 +221,37 @@ def hr_dashboard_page():
 def barplot_page():
     state = me.state(State)
     if state.user_id and state.password:
-        conn = create_connection()
-        data = fetch_issue_data(conn)
-        fig = generate_bar_chart(data)
-        me.plot(fig, style=me.Style(width="80%"))
-        me.button("Back", on_click=lambda e: me.navigate("/Hr/dashboard"),type="flat")
+        with me.box(style=me.Style(margin=me.Margin.all(15))):
+            me.text(text="Choose Period")
+            me.select(
+            label="select",
+            options=[
+                me.SelectOption(label="Last 7 Days", value="Last 7 Days"),
+                me.SelectOption(label="Last 30 Days", value="Last 30 Days"),
+                me.SelectOption(label="This Month", value="This Month"),
+                me.SelectOption(label="Last Month", value="Last Month")
+            ],
+            on_selection_change=on_selection_change,
+            style=me.Style(width=500),
+            multiple=False,
+            )
+        state = me.state(State)
+        from_date_str, till_date_str = get_date_range(state.selected_values)
+
+        data = Get_Stats(from_date_str, till_date_str) 
+        if data:
+            fig = generate_bar_chart(result = data, title = 'Results')
+            me.text("Office Issue Statistics:")
+            me.plot(fig, style=me.Style(width="80%"))
+        else:
+            me.text("No data available for the selected period.")
+        me.button("Back", on_click=lambda e: me.navigate("/Hr/dashboard"),type = 'flat')
     else:
         me.navigate("")
+
+def on_selection_change(e: me.SelectSelectionChangeEvent):
+    s = me.state(State)
+    s.selected_values = e.values
 
 @me.page(path="/Hr/try_again")
 def try_again_page():
@@ -186,12 +264,11 @@ def try_again_page():
         me.navigate("")
 
 def clear_login(e: me.ClickEvent):
-        state = me.state(State)
-
-        if state.user_id and state.password:
-            state.user_id=""
-            state.password=""
-            me.navigate("/Hr")
+    state = me.state(State)
+    if state.user_id and state.password:
+        state.user_id=""
+        state.password=""
+        me.navigate("/Hr")
            
 @me.page(path="/Hr")
 def hr_login_page():
@@ -199,24 +276,19 @@ def hr_login_page():
     me.text("HR Login", type="headline-4")
     me.text("Enter your HR credentials to access the dashboard.", type="body-1")
 
-    me.input(label="Username", on_input=on_user_id_input)  
+    me.input(label="Username", on_input=on_user_id_input) 
     me.input(label="Password", type="password", on_input=on_password_input)  
     
     def handle_login(e: me.ClickEvent):
         state = me.state(State)
-
         if state.user_id and state.password:
-            
-            user = validate_user(state.user_id, state.password)
-            if user:
-                if user[2] == state.password:
-                    state.logged_in = True
-                    me.navigate("/Hr/dashboard")
-                else:
-                    me.navigate("/Hr/try_again")
+            user = Admin_Login(state.user_id, state.password)
+            if user == True:
+                state.logged_in = True
+                me.navigate("/Hr/dashboard")
             else:
                 me.navigate("/Hr/try_again")
-
+    
     me.button("Login", on_click=handle_login, type="flat")
     me.button("back", on_click=lambda e: me.navigate("/"), type="flat")
 

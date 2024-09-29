@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 venv/
-
+backup/
 
 
 # Distribution / packaging

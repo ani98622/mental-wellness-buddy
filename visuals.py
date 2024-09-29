@@ -1,7 +1,4 @@
-import mesop as me
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from office_issues import fetch_issue_data, create_connection
 from matplotlib.ticker import MaxNLocator
 from matplotlib.figure import Figure
 import seaborn as sns
@@ -57,3 +54,6 @@ def get_date_range(option):
         from_date = today - timedelta(days=30)  # Default to last 30 days
 
     return from_date.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
+
+
+

@@ -10,7 +10,6 @@ from admin import validate_user
 from office_issues import fetch_issue_data, create_connection
 from visuals import generate_bar_chart, get_date_range
 
-
 load_dotenv()
 
 groq_api_key = os.getenv('GROQ_API_KEY')
@@ -85,8 +84,7 @@ def get_system_id():
     else:
         return "Unsupported operating system."
 
-def get_session_history(session_id):
-    return SQLChatMessageHistory(session_id,"sqlite:///database.db")
+
 
 llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
 

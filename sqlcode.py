@@ -1,70 +1,70 @@
-import mysql.connector
+import mysql.connector 
+import os
 from datetime import datetime
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from dotenv import load_dotenv
+load_dotenv()
+
+host = os.getenv("DB_HOST")
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASSWORD")
+database = os.getenv("DB_NAME")
 
 conn = mysql.connector.connect(
-    host="34.136.193.138",
-    user="nooh-mindmate",
-    password="ABCabc123@#$",
-    database="NoohMindmateDB"
+    host=host,
+    user=user,
+    password=password,
+    database=database
 )
 
-# def Add_Admin(user_id,pin):
-#     cursor = conn.cursor()
-#     sql_query = "SELECT * FROM administrators WHERE user_name = %s;"
-#     values = (user_id,)
-#     cursor.execute(sql_query, values)
-#     result = cursor.fetchone()
-#     if result:
-#         return False
-#     sql_query = "INSERT INTO administrators (user_name, pin) VALUES (%s, %s);"
-#     values = (user_id, pin)
-#     cursor.execute(sql_query, values)
-#     conn.commit()
-#     return True
+def Add_Admin(user_id,pin):
+    cursor = conn.cursor()
+    sql_query = "SELECT * FROM administrators WHERE user_name = %s;"
+    values = (user_id,)
+    cursor.execute(sql_query, values)
+    result = cursor.fetchone()
+    if result:
+        return False
+    sql_query = "INSERT INTO administrators (user_name, pin) VALUES (%s, %s);"
+    values = (user_id, pin)
+    cursor.execute(sql_query, values)
+    conn.commit()
+    return True
     
-# def Admin_Login(user_id,pin):
-#     cursor = conn.cursor()
-#     sql_query = "SELECT 1 FROM administrators WHERE user_name = %s AND pin = %s;"
-#     values = (user_id, pin)
-#     cursor.execute(sql_query, values)
-#     result = cursor.fetchone()
-#     if result:
-#         return True
-#     return False
+def Admin_Login(user_id, pin):
+    cursor = conn.cursor()
+    sql_query = "SELECT * FROM administrators WHERE user_name = %s AND pin = %s"
+    cursor.execute(sql_query, (user_id, pin))
+    result = cursor.fetchone() 
+    if result:
+        return True  
+    else:
+        return False
 
-# def Check_System(s_id):
-#     cursor = conn.cursor()
-#     sql_query = "SELECT 1 FROM systems WHERE s_id = %s;"
-#     values = (s_id,)
-#     cursor.execute(sql_query, values)
-#     result = cursor.fetchone()
-#     if result:
-#         return True
-#     return False
+def Add_Chathistory(s_id, chat):
+    cursor = conn.cursor()
+    lines = chat.split("\n")
+    
+    for line in lines:
+        if ": " in line:  # Ensure there's a speaker and a message
+            speaker, message = line.split(": ", 1)
+            
+            # Map the speaker to the correct format
+            if speaker == "Human":
+                speaker = "User"
+            elif speaker == "AI":
+                speaker = "AI"
+            else:
+                continue 
 
-# def Add_System(s_id):
-#     if Check_System(s_id):
-#         return False
-#     cursor = conn.cursor()
-#     sql_query = "INSERT INTO systems (s_id) VALUES (%s);"
-#     values = (s_id,)
-#     cursor.execute(sql_query, values)
-#     conn.commit() 
-#     return True
+            if speaker:
+                sql_query = "INSERT INTO chathistory (s_id, speaker, chat) VALUES (%s, %s, %s);"
+                values = (s_id, speaker, message)
+                cursor.execute(sql_query, values)
 
-def Add_Chathistory(s_id,speaker,chat):
-    if Check_System(s_id) and speaker in ["User","AI"]:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        sql_query = "INSERT INTO chathistory (s_id,speaker,chat) VALUES (%s,%s,%s);"
-        values = (s_id, speaker, chat)
-        cursor.execute(sql_query, values)
-        conn.commit() 
-        return True
-    return False
+    conn.commit()
 
 def Get_Chathistory(s_id, fromdate = 0, tilldate = 0):
-    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     if fromdate != 0:
         from_timestamp = datetime.strptime(fromdate, '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
@@ -112,14 +112,44 @@ def Get_Chathistory(s_id, fromdate = 0, tilldate = 0):
     else:
         return []
 
-def Add_Data(s_id, summary = "", work_stress = "Unclear", work_discontent = "Unclear", anxiety = "Unclear", depression = "Unclear", compensation_frustration = "Unclear", suicidal_thoughts = "Unclear", workplace_bullying = "Unclear", toxic_work_environment = "Unclear", underappreciation = "Unclear", time_deprivation = "Unclear"):
-    allowedresponse = ["Critical","Moderate","Unclear"]
-    fields_to_check = [work_stress, work_discontent, anxiety, depression, compensation_frustration, suicidal_thoughts, workplace_bullying, toxic_work_environment, underappreciation, time_deprivation]
-    if not Check_System(s_id) or any(field not in allowedresponse for field in fields_to_check):
-        return False
+def add_data(s_id,chat,llm):
+    d={"summary":"","work_stress":"", "work_discontent":"", "anxiety":"", "depression":"", "compensation_frustration":"","suicidal_thoughts":"", "workplace_bullying":"", "toxic_work_environment":"", "underappreciation":"", "time_deprivation":""}
+    l=[]
+    for issue in d:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "user",
+                    f"Analyse the chat {chat} by an employee with the chatbot and find if the employee is suffering from any {issue}, respond with strictly one of the answers, [Critical,Moderate,Unclear]",
+                ),
+            ]
+        )
+        chain = prompt | llm
+
+        message = chain.invoke({"input":"hi"}).content
+        if "critical" in message.lower():
+            l.append(issue)
+            d[issue]="Critical"
+        elif "moderate" in message.lower():
+            d[issue]="Moderate"
+            l.append(issue)
+        else:
+            d[issue]="Unclear"
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "user",
+                f"Analyse the above chat, {chat} by an employee with the chatbot and find why the employee is suffering from the following troubles {l}, make a short summary without mentioning any personal details in a third person perspective",
+            ),
+        ]
+        )
+    chain = prompt | llm
+
+    message = chain.invoke({"input": "hi"}).content
+    d["summary"]=message
     cursor = conn.cursor()
     sql_query = "INSERT INTO data_ (s_id,summary, work_stress, work_discontent, anxiety, depression, compensation_frustration, suicidal_thoughts, workplace_bullying, toxic_work_environment, underappreciation, time_deprivation) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
-    values = (s_id,summary, work_stress, work_discontent, anxiety, depression, compensation_frustration, suicidal_thoughts, workplace_bullying, toxic_work_environment, underappreciation, time_deprivation)
+    values = (s_id,d["summary"], d["work_stress"], d["work_discontent"], d["anxiety"], d["depression"], d["compensation_frustration"], d["suicidal_thoughts"], d["workplace_bullying"], d["toxic_work_environment"], d["underappreciation"], d["time_deprivation"])
     cursor.execute(sql_query, values)
     conn.commit() 
     return True
@@ -131,6 +161,7 @@ def Get_Stats(fromdate = 0, tilldate = 0):
                 'compensation_frustration', 'suicidal_thoughts', 'workplace_bullying',
                 'toxic_work_environment', 'underappreciation', 'time_deprivation'
             ]
+            
     result = {col: (0, 0, 0) for col in columns}
     if fromdate != 0:
         from_timestamp = datetime.strptime(fromdate, '%Y-%m-%d').replace(hour=0, minute=0, second=0, microsecond=0)
@@ -334,7 +365,7 @@ def Get_PersonalInfo(s_id):
         FROM personal_info
         WHERE s_id = %s;
         """
-    values = (s_id)
+    values = (s_id,)
     cursor.execute(sql_query, values)
     result = cursor.fetchone()
     conn.commit()
@@ -343,6 +374,7 @@ def Get_PersonalInfo(s_id):
     return False
 
 def UpdateOrAdd_PersonalInfo(s_id, info):
+
     if Get_PersonalInfo(s_id) != False:
         cursor = conn.cursor()
         sql_query = """
@@ -354,11 +386,20 @@ def UpdateOrAdd_PersonalInfo(s_id, info):
         cursor.execute(sql_query, values)
         conn.commit()
         return True
-    if Check_System(s_id):
-        ursor = conn.cursor()
-        sql_query = "INSERT INTO personal_info (s_id, info) VALUES (%s, %s);"
-        values = (s_id, info)
-        cursor.execute(sql_query, values)
-        conn.commit()
-        return True
-    return False
+    
+    cursor = conn.cursor()
+    sql_query = "INSERT INTO personal_info (s_id, info) VALUES (%s, %s);"
+    values = (s_id, info)
+    cursor.execute(sql_query, values)
+    conn.commit()
+    return True
+
+# Add_Admin('siva@agilisum.com','pass123')
+# Add_Admin('bala@agilisum.com','pass124')
+# Add_Admin('raju@agilisum', 'pass125')
+# Add_Admin('sivas','pass126')
+# Add_Admin('balaa','pass127')
+# Add_Admin('rajb','pass128')
+
+
+# print(Admin_Login('sivas', 'pass126'))
